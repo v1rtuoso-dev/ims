@@ -9,10 +9,10 @@ import lombok.Data;
 public class LoanInterestParam {
     @Id
     @Column(name = "ID")
-    private Long id;
+    private int id;
 
     @Column(name = "TYPE_ID")
-    private Long typeId;
+    private int typeId;
 
     @Column(name = "VALUE")
     private String value;

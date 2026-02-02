@@ -45,7 +45,7 @@ public class InterestServiceImpl implements InterestService {
 
             int colIndex = 0;
             // Duyệt qua danh sách ID các cột người dùng chọn
-            for (Long typeId : request.getParamTypeIds()) {
+            for (Integer typeId : request.getParamTypeIds()) {
                 LoanInterestParamType paramType = typeRepo.findById(typeId).orElse(null);
                 if (paramType == null) continue;
 

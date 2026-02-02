@@ -5,5 +5,5 @@ import java.util.List;
 
 @Data
 public class TemplateRequest {
-    private List<Long> paramTypeIds; // Danh sách ID các cột người dùng tick chọn
+    private List<Integer> paramTypeIds; // Danh sách ID các cột người dùng tick chọn
 }

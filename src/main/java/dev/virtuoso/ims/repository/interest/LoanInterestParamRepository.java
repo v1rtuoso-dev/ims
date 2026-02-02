@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface LoanInterestParamRepository extends JpaRepository<LoanInterestParam, Long> {
+public interface LoanInterestParamRepository extends JpaRepository<LoanInterestParam, Integer> {
     // Lấy các param đang ACTIVE theo Type ID
-    List<LoanInterestParam> findByTypeIdAndStatus(Long typeId, String status);
+    List<LoanInterestParam> findByTypeIdAndStatus(Integer typeId, String status);
 }

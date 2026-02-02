@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Cho phép tất cả mọi người truy cập vào các đường dẫn bắt đầu bằng /api/users/
                         .requestMatchers("/api/users/**").permitAll()
+                        .requestMatchers("api/interest/exportTemplate").permitAll()
 
                         // Các đường dẫn khác (nếu có) vẫn yêu cầu đăng nhập
                         .anyRequest().authenticated()

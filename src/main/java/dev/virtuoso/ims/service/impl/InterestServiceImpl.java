@@ -30,11 +30,12 @@ public class InterestServiceImpl implements InterestService {
     public ByteArrayInputStream generateInterestTemplate(TemplateRequest request) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
+            // 1. Tạo 2 Sheet: Một hiện (nhập liệu), Một ẩn (chứa data drop-down)
             Sheet mainSheet = workbook.createSheet("Import Template");
             String hiddenSheetName = "HiddenData";
             Sheet hiddenSheet = workbook.createSheet(hiddenSheetName);
 
-            // Style Header
+            // Style cho Header (In đậm)
             CellStyle headerStyle = workbook.createCellStyle();
             Font font = workbook.createFont();
             font.setBold(true);
@@ -43,47 +44,50 @@ public class InterestServiceImpl implements InterestService {
             Row headerRow = mainSheet.createRow(0);
 
             int colIndex = 0;
-
-            // --- THAY ĐỔI Ở ĐÂY: Duyệt qua danh sách CODE ---
-            for (String code : request.getParamTypeCodes()) {
-
-                // 1. Tìm Type bằng CODE thay vì ID
-                LoanInterestParamType paramType = typeRepo.findByCode(code).orElse(null);
-
-                // Nếu code không tồn tại trong DB thì bỏ qua
+            // Duyệt qua danh sách ID các cột người dùng chọn
+            for (Long typeId : request.getParamTypeIds()) {
+                LoanInterestParamType paramType = typeRepo.findById(typeId).orElse(null);
                 if (paramType == null) continue;
 
-                // --- TỪ ĐÂY TRỞ XUỐNG LOGIC GIỮ NGUYÊN ---
-
-                // Tạo Header (Dùng Name lấy được từ DB)
+                // A. Tạo Header trên Main Sheet
                 Cell cell = headerRow.createCell(colIndex);
                 cell.setCellValue(paramType.getName());
                 cell.setCellStyle(headerStyle);
-                mainSheet.setColumnWidth(colIndex, 6000);
+                mainSheet.setColumnWidth(colIndex, 6000); // Độ rộng cột
 
-                // Lấy values dựa trên ID của Type vừa tìm được
-                List<LoanInterestParam> params = paramRepo.findByTypeIdAndStatus(paramType.getId(), "ACTIVE");
+                // B. Lấy dữ liệu từ DB
+                List<LoanInterestParam> params = paramRepo.findByTypeIdAndStatus(typeId, "ACTIVE");
 
                 if (!params.isEmpty()) {
-                    // Ghi data vào sheet ẩn
+                    // C. Đổ dữ liệu vào Hidden Sheet (Mỗi loại tham số 1 cột)
                     for (int i = 0; i < params.size(); i++) {
                         Row row = hiddenSheet.getRow(i);
                         if (row == null) row = hiddenSheet.createRow(i);
                         row.createCell(colIndex).setCellValue(params.get(i).getValue());
                     }
 
-                    // Tạo Validation (Cách 1 - Direct Reference)
+                    // D. Tạo công thức tham chiếu trực tiếp (CÁCH 1)
+                    // Cú pháp: 'HiddenData'!$A$1:$A$5
                     String colLetter = getExcelColumnName(colIndex + 1);
-                    String formula = "'" + hiddenSheetName + "'!$" + colLetter + "$1:$" + colLetter + "$" + params.size();
+                    int lastRow = params.size();
 
+                    // Lưu ý: Tên sheet nên để trong dấu nháy đơn '' phòng trường hợp có khoảng trắng
+                    String formula = "'" + hiddenSheetName + "'!$" + colLetter + "$1:$" + colLetter + "$" + lastRow;
+
+                    // E. Tạo Data Validation
                     DataValidationHelper validationHelper = mainSheet.getDataValidationHelper();
-                    CellRangeAddressList addressList = new CellRangeAddressList(1, 1000, colIndex, colIndex);
+
+                    // Áp dụng drop-down từ dòng 2 đến dòng 1000
+                    CellRangeAddressList addressList = new CellRangeAddressList(1, 10000, colIndex, colIndex);
+
+                    // Tạo ràng buộc dạng List từ công thức
                     DataValidationConstraint constraint = validationHelper.createFormulaListConstraint(formula);
+
                     DataValidation validation = validationHelper.createValidation(constraint, addressList);
 
-                    // Cấu hình hiện mũi tên dropdown
-                    validation.setSuppressDropDownArrow(true);
-                    validation.setShowErrorBox(true);
+                    // CẤU HÌNH HIỂN THỊ MŨI TÊN DROPDOWN
+                    validation.setSuppressDropDownArrow(true); // false = HIỆN mũi tên (Không ẩn)
+                    validation.setShowErrorBox(true);           // Hiển thị lỗi nếu nhập sai
 
                     mainSheet.addValidationData(validation);
                 }
@@ -91,16 +95,21 @@ public class InterestServiceImpl implements InterestService {
                 colIndex++;
             }
 
+            // Ẩn sheet dữ liệu đi để người dùng đỡ rối
             workbook.setSheetHidden(workbook.getSheetIndex(hiddenSheet), true);
+
+            // Set sheet chính là sheet active khi mở file
             workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
+
             workbook.write(out);
             return new ByteArrayInputStream(out.toByteArray());
 
         } catch (IOException e) {
-            throw new RuntimeException("Lỗi export excel: " + e.getMessage());
+            throw new RuntimeException("Lỗi export excel template: " + e.getMessage());
         }
     }
 
+    // Hàm chuyển đổi số thành chữ cái cột Excel (0 -> A, 1 -> B, ...)
     private String getExcelColumnName(int n) {
         StringBuilder result = new StringBuilder();
         while (n > 0) {
